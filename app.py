@@ -340,7 +340,7 @@ uploaded_video = st.file_uploader(
 
 
 # ============================================================
-# Pothole VIDEO PROCESSING
+# VIDEO PROCESSING
 # ============================================================
 
 def process_combined_video(
@@ -406,6 +406,9 @@ def process_combined_video(
     frame_number = 0
     pothole_count = 0
     waterlogging_count = 0
+
+    hit_run_tracks = {}
+    collision_events = []
 
     try:
 
