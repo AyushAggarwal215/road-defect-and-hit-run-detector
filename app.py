@@ -249,6 +249,24 @@ def run_waterlogging_on_frame(
 
 
 # ============================================================
+# WATERLOGGING API KEY
+# ============================================================
+
+WATERLOGGING_API_KEY = st.secrets.get(
+    "ROBOFLOW_API_KEY"
+)
+
+if not WATERLOGGING_API_KEY:
+
+    st.error(
+        "❌ ROBOFLOW_API_KEY is missing "
+        "from Streamlit Secrets."
+    )
+
+    st.stop()
+
+
+# ============================================================
 # SETTINGS
 # ============================================================
 
