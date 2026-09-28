@@ -516,7 +516,7 @@ def process_combined_video(
                         (a["cy"] - b["cy"]) ** 2
                     ) ** 0.5
 
-                    if distance < 100:
+                    if distance < 60:
 
                         pair = tuple(
                             sorted([
