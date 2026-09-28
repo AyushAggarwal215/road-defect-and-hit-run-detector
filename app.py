@@ -300,10 +300,10 @@ uploaded_video = st.file_uploader(
 
 
 # ============================================================
-# POTHOLE VIDEO PROCESSING
+# Pothole VIDEO PROCESSING
 # ============================================================
 
-def process_pothole_video(
+def process_combined_video(
     input_path,
     output_path,
     confidence,
@@ -313,6 +313,7 @@ def process_pothole_video(
     cap = cv2.VideoCapture(input_path)
 
     if not cap.isOpened():
+
         raise RuntimeError(
             "Could not open the uploaded video."
         )
@@ -334,13 +335,11 @@ def process_pothole_video(
         cap.get(cv2.CAP_PROP_FRAME_COUNT)
     )
 
-    # Temporary AVI file
     avi_path = output_path.replace(
         ".mp4",
         ".avi"
     )
 
-    # Use MJPG for OpenCV
     fourcc = cv2.VideoWriter_fourcc(
         *"MJPG"
     )
@@ -353,6 +352,7 @@ def process_pothole_video(
     )
 
     if not out.isOpened():
+
         cap.release()
 
         raise RuntimeError(
@@ -363,7 +363,8 @@ def process_pothole_video(
     status = st.empty()
 
     frame_number = 0
-    detection_count = 0
+    pothole_count = 0
+    waterlogging_count = 0
 
     try:
 
@@ -374,22 +375,60 @@ def process_pothole_video(
             if not ret:
                 break
 
-            results = pothole_model.predict(
+            # =================================================
+            # POTHOLE DETECTION
+            # =================================================
+
+            pothole_results = pothole_model.predict(
                 source=frame,
                 conf=confidence,
                 imgsz=image_size,
                 verbose=False
             )
 
-            result = results[0]
+            pothole_result = pothole_results[0]
 
-            if result.boxes is not None:
+            if pothole_result.boxes is not None:
 
-                detection_count += len(
-                    result.boxes
+                pothole_count += len(
+                    pothole_result.boxes
                 )
 
-            annotated_frame = result.plot()
+            annotated_frame = (
+                pothole_result.plot()
+            )
+
+
+            # =================================================
+            # WATERLOGGING DETECTION
+            # =================================================
+
+            water_image, water_predictions = (
+                run_waterlogging_on_frame(
+                    annotated_frame,
+                    WATERLOGGING_API_KEY
+                )
+            )
+
+            water_count = prediction_count(
+                water_predictions
+            )
+
+            waterlogging_count += water_count
+
+
+            # =================================================
+            # USE WATERLOGGING ANNOTATED IMAGE
+            # =================================================
+
+            if water_image is not None:
+
+                annotated_frame = water_image
+
+
+            # =================================================
+            # WRITE FRAME
+            # =================================================
 
             out.write(
                 annotated_frame
@@ -410,8 +449,10 @@ def process_pothole_video(
                     f"Processing frame "
                     f"{frame_number} / "
                     f"{total_frames} "
-                    f"• Pothole detections: "
-                    f"{detection_count}"
+                    f"• Potholes: "
+                    f"{pothole_count} "
+                    f"• Waterlogging: "
+                    f"{waterlogging_count}"
                 )
 
             else:
@@ -419,8 +460,10 @@ def process_pothole_video(
                 status.text(
                     f"Processing frame "
                     f"{frame_number} "
-                    f"• Pothole detections: "
-                    f"{detection_count}"
+                    f"• Potholes: "
+                    f"{pothole_count} "
+                    f"• Waterlogging: "
+                    f"{waterlogging_count}"
                 )
 
     finally:
@@ -431,7 +474,10 @@ def process_pothole_video(
     progress.empty()
     status.empty()
 
-    # Convert AVI → MP4 using FFmpeg
+    # =========================================================
+    # CONVERT AVI → MP4
+    # =========================================================
+
     ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
 
     command = [
@@ -452,18 +498,22 @@ def process_pothole_video(
         stderr=subprocess.PIPE
     )
 
-    # Remove temporary AVI
     if os.path.exists(avi_path):
+
         os.remove(avi_path)
 
     if result.returncode != 0:
 
         raise RuntimeError(
-            "FFmpeg could not convert the output video."
+            "FFmpeg could not convert "
+            "the output video."
         )
 
-    return frame_number, detection_count
-
+    return (
+        frame_number,
+        pothole_count,
+        waterlogging_count
+    )
 
 # ============================================================
 # MAIN APP
@@ -522,8 +572,8 @@ if uploaded_video is not None:
                 "🔍 Detecting potholes..."
             ):
 
-                frames_processed, total_detections = (
-                    process_pothole_video(
+                frames_processed, pothole_detections, waterlogging_detections = (
+                    process_combined_video(
                         input_path,
                         output_path,
                         confidence,
@@ -541,24 +591,30 @@ if uploaded_video is not None:
                 f"{frames_processed:,} frames processed."
             )
 
-            st.subheader("📊 Pothole Detection Summary")
+            st.subheader("📊 Detection Summary")
 
-            col1, col2 = st.columns(2)
+            col1, col2, col3 = st.columns(3)
 
             with col1:
-
+            
                 st.metric(
                     "Frames Processed",
                     f"{frames_processed:,}"
                 )
-
+            
             with col2:
-
+            
                 st.metric(
                     "Pothole Detections",
-                    f"{total_detections:,}"
+                    f"{pothole_detections:,}"
                 )
-
+            
+            with col3:
+            
+                st.metric(
+                    "Waterlogging Detections",
+                    f"{waterlogging_detections:,}"
+                )
 
             # ------------------------------------------------
             # OUTPUT VIDEO
