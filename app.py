@@ -409,6 +409,7 @@ def process_combined_video(
 
     hit_run_tracks = {}
     collision_events = []
+    active_collision_pairs = set()
 
     try:
 
@@ -496,9 +497,12 @@ def process_combined_video(
                             "speed": speed
                         })
 
+
             # =================================================
             # HIT & RUN COLLISION DETECTION
             # =================================================
+
+            current_collision_pairs = set()
 
             for i in range(len(current_objects)):
 
@@ -514,13 +518,34 @@ def process_combined_video(
 
                     if distance < 100:
 
-                        collision_events.append({
-                            "frame": frame_number,
-                            "a": a,
-                            "b": b,
-                            "distance": distance
-                        })
+                        pair = tuple(
+                            sorted([
+                                a["id"],
+                                b["id"]
+                            ])
+                        )
 
+                        current_collision_pairs.add(pair)
+
+                        # Only record when the pair
+                        # becomes close for the first time
+                        if pair not in active_collision_pairs:
+
+                            collision_events.append({
+
+                                "frame": frame_number,
+
+                                "a": a,
+
+                                "b": b,
+
+                                "distance": distance
+
+                            })
+
+            active_collision_pairs = current_collision_pairs
+
+            
             # =================================================
             # POTHOLE DETECTION
             # =================================================
