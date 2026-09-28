@@ -248,23 +248,6 @@ def run_waterlogging_on_frame(
     return output_image, predictions
 
 
-# ============================================================
-# WATERLOGGING API KEY
-# ============================================================
-
-WATERLOGGING_API_KEY = st.secrets.get(
-    "ROBOFLOW_API_KEY"
-)
-
-if not WATERLOGGING_API_KEY:
-
-    st.error(
-        "❌ ROBOFLOW_API_KEY is missing "
-        "from Streamlit Secrets."
-    )
-
-    st.stop()
-
 
 # ============================================================
 # SETTINGS
@@ -307,7 +290,8 @@ def process_combined_video(
     input_path,
     output_path,
     confidence,
-    image_size
+    image_size,
+    api_key
 ):
 
     cap = cv2.VideoCapture(input_path)
@@ -406,7 +390,7 @@ def process_combined_video(
             water_image, water_predictions = (
                 run_waterlogging_on_frame(
                     annotated_frame,
-                    WATERLOGGING_API_KEY
+                    api_key
                 )
             )
 
@@ -531,6 +515,15 @@ if uploaded_video is not None:
         use_container_width=True
     ):
 
+        api_key = st.secrets.get("ROBOFLOW_API_KEY")
+
+        if not api_key:
+            st.error(
+                "❌ ROBOFLOW_API_KEY is missing "
+                "from Streamlit Secrets."
+            )
+            st.stop()
+
         input_path = None
         output_path = None
 
@@ -577,7 +570,8 @@ if uploaded_video is not None:
                         input_path,
                         output_path,
                         confidence,
-                        image_size
+                        image_size,
+                        api_key
                     )
                 )
 
