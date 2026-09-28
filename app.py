@@ -862,7 +862,12 @@ def process_combined_video(
         frame_number,
         pothole_count,
         waterlogging_count,
-        hit_run_count
+        hit_run_count,
+        offender_id,
+        vehicle_type,
+        video_timestamp,
+        plate_number,
+        plate_confidence
     )
 
 # ============================================================
@@ -931,7 +936,7 @@ if uploaded_video is not None:
                 "🔍 Detecting potholes..."
             ):
 
-                frames_processed, pothole_detections, waterlogging_detections, hit_run_detections = (
+                frames_processed, pothole_detections, waterlogging_detections, hit_run_detections, offender_id, vehicle_type, video_timestamp, plate_number, plate_confidence = (
                     process_combined_video(
                         input_path,
                         output_path,
