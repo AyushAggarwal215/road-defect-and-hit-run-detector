@@ -983,6 +983,68 @@ if uploaded_video is not None:
                     f"{hit_run_detections:,}"
                 )
 
+
+            # ------------------------------------------------
+            # HIT & RUN RESULT
+            # ------------------------------------------------
+
+            if hit_run_detections > 0:
+
+                st.subheader("🚨 Hit & Run Detection")
+
+                st.error(
+                    "🚨 Possible HIT-AND-RUN detected"
+                )
+
+                col1, col2, col3 = st.columns(3)
+
+                with col1:
+
+                    st.metric(
+                        "Offender Track ID",
+                        str(offender_id)
+                    )
+
+                with col2:
+
+                    st.metric(
+                        "Vehicle Type",
+                        vehicle_type
+                    )
+
+                with col3:
+
+                    st.metric(
+                        "Video Timestamp",
+                        video_timestamp
+                    )
+
+                if plate_number is not None:
+
+                    st.success(
+                        f"🚘 Registration Number: "
+                        f"{plate_number}"
+                    )
+
+                    st.write(
+                        f"**OCR Confidence:** "
+                        f"{plate_confidence * 100:.1f}%"
+                    )
+
+                else:
+
+                    st.warning(
+                        "Number plate could not be read clearly."
+                    )
+
+            else:
+
+                st.info(
+                    "ℹ️ No possible hit-and-run collision "
+                    "was detected."
+                )
+
+            
             # ------------------------------------------------
             # OUTPUT VIDEO
             # ------------------------------------------------
