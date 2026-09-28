@@ -1,22 +1,374 @@
 import streamlit as st
+import cv2
+import tempfile
+import os
+from pathlib import Path
+
+from ultralytics import YOLO
+import gdown
+
 
 st.set_page_config(
     page_title="Road Defect and Hit & Run Detector",
     page_icon="🚨",
-    layout="wide"
+    layout="wide",
 )
 
 st.title("🚨 Road Defect and Hit & Run Detector")
+st.caption("AI-powered road analysis")
 
-st.write(
-    "Upload a video to detect potholes, waterlogging, and hit-and-run incidents."
-)
 
-video = st.file_uploader(
-    "🎥 Upload a video",
+# ============================================================
+# POTHOLE MODEL CONFIGURATION
+# ============================================================
+
+MODEL_PATH = Path("/tmp/pothole_best.pt")
+
+DRIVE_FILE_ID = "1B0XF-Mnn62Wrv3G9IPeMaavkpO6ReAyl"
+
+
+# ============================================================
+# LOAD POTHOLE MODEL
+# ============================================================
+
+@st.cache_resource
+def load_pothole_model():
+
+    if not MODEL_PATH.exists():
+
+        with st.spinner("Downloading pothole model..."):
+
+            downloaded = gdown.download(
+                id=DRIVE_FILE_ID,
+                output=str(MODEL_PATH),
+                quiet=False
+            )
+
+        if downloaded is None or not MODEL_PATH.exists():
+
+            raise RuntimeError(
+                "Pothole model download failed. "
+                "Make sure the Google Drive file is shared "
+                "as Anyone with the link → Viewer."
+            )
+
+    return YOLO(str(MODEL_PATH))
+
+
+try:
+
+    pothole_model = load_pothole_model()
+
+    st.success("✅ Pothole model loaded successfully.")
+
+except Exception as e:
+
+    st.error(f"❌ Could not load pothole model: {e}")
+    st.stop()
+
+
+# ============================================================
+# SETTINGS
+# ============================================================
+
+with st.sidebar:
+
+    st.header("⚙️ Detection Settings")
+
+    confidence = st.slider(
+        "Minimum confidence",
+        0.10,
+        0.90,
+        0.35,
+        0.05
+    )
+
+    image_size = st.select_slider(
+        "Inference image size",
+        options=[320, 416, 512, 640],
+        value=640
+    )
+
+
+# ============================================================
+# VIDEO UPLOAD
+# ============================================================
+
+uploaded_video = st.file_uploader(
+    "🎥 Upload a road / accident video",
     type=["mp4", "avi", "mov", "mkv"]
 )
 
-if video is not None:
-    st.subheader("🎬 Uploaded Video")
-    st.video(video)
+
+# ============================================================
+# POTHOLE VIDEO PROCESSING
+# ============================================================
+
+def process_pothole_video(
+    input_path,
+    output_path,
+    confidence,
+    image_size
+):
+
+    cap = cv2.VideoCapture(input_path)
+
+    if not cap.isOpened():
+
+        raise RuntimeError(
+            "Could not open the uploaded video."
+        )
+
+    width = int(
+        cap.get(cv2.CAP_PROP_FRAME_WIDTH)
+    )
+
+    height = int(
+        cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    )
+
+    fps = cap.get(cv2.CAP_PROP_FPS)
+
+    if fps <= 0:
+        fps = 25
+
+    total_frames = int(
+        cap.get(cv2.CAP_PROP_FRAME_COUNT)
+    )
+
+    fourcc = cv2.VideoWriter_fourcc(
+        *"mp4v"
+    )
+
+    out = cv2.VideoWriter(
+        output_path,
+        fourcc,
+        fps,
+        (width, height)
+    )
+
+    if not out.isOpened():
+
+        cap.release()
+
+        raise RuntimeError(
+            "Could not create the output video."
+        )
+
+    progress = st.progress(0)
+    status = st.empty()
+
+    frame_number = 0
+    detection_count = 0
+
+    try:
+
+        while True:
+
+            ret, frame = cap.read()
+
+            if not ret:
+                break
+
+            results = pothole_model.predict(
+                source=frame,
+                conf=confidence,
+                imgsz=image_size,
+                verbose=False
+            )
+
+            result = results[0]
+
+            if result.boxes is not None:
+
+                detection_count += len(
+                    result.boxes
+                )
+
+            annotated_frame = result.plot()
+
+            out.write(
+                annotated_frame
+            )
+
+            frame_number += 1
+
+            if total_frames > 0:
+
+                progress.progress(
+                    min(
+                        frame_number / total_frames,
+                        1.0
+                    )
+                )
+
+                status.text(
+                    f"Processing frame "
+                    f"{frame_number} / "
+                    f"{total_frames} "
+                    f"• Pothole detections: "
+                    f"{detection_count}"
+                )
+
+            else:
+
+                status.text(
+                    f"Processing frame "
+                    f"{frame_number} "
+                    f"• Pothole detections: "
+                    f"{detection_count}"
+                )
+
+    finally:
+
+        cap.release()
+        out.release()
+
+    progress.empty()
+    status.empty()
+
+    return frame_number, detection_count
+
+
+# ============================================================
+# MAIN APP
+# ============================================================
+
+if uploaded_video is not None:
+
+    st.subheader("🎬 Original Video")
+
+    st.video(uploaded_video)
+
+    if st.button(
+        "🔍 Analyze Video",
+        type="primary",
+        use_container_width=True
+    ):
+
+        input_path = None
+        output_path = None
+
+        try:
+
+            # ------------------------------------------------
+            # SAVE INPUT VIDEO
+            # ------------------------------------------------
+
+            with tempfile.NamedTemporaryFile(
+                delete=False,
+                suffix=".mp4"
+            ) as input_file:
+
+                input_file.write(
+                    uploaded_video.getbuffer()
+                )
+
+                input_path = input_file.name
+
+
+            # ------------------------------------------------
+            # CREATE OUTPUT VIDEO
+            # ------------------------------------------------
+
+            with tempfile.NamedTemporaryFile(
+                delete=False,
+                suffix=".mp4"
+            ) as output_file:
+
+                output_path = output_file.name
+
+
+            # ------------------------------------------------
+            # PROCESS VIDEO
+            # ------------------------------------------------
+
+            with st.spinner(
+                "🔍 Detecting potholes..."
+            ):
+
+                frames_processed, total_detections = (
+                    process_pothole_video(
+                        input_path,
+                        output_path,
+                        confidence,
+                        image_size
+                    )
+                )
+
+
+            # ------------------------------------------------
+            # RESULTS
+            # ------------------------------------------------
+
+            st.success(
+                f"✅ Analysis complete — "
+                f"{frames_processed:,} frames processed."
+            )
+
+            st.subheader("📊 Pothole Detection Summary")
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+
+                st.metric(
+                    "Frames Processed",
+                    f"{frames_processed:,}"
+                )
+
+            with col2:
+
+                st.metric(
+                    "Pothole Detections",
+                    f"{total_detections:,}"
+                )
+
+
+            # ------------------------------------------------
+            # OUTPUT VIDEO
+            # ------------------------------------------------
+
+            st.subheader(
+                "🎥 Pothole Detection Output"
+            )
+
+            st.video(output_path)
+
+
+            # ------------------------------------------------
+            # DOWNLOAD
+            # ------------------------------------------------
+
+            with open(
+                output_path,
+                "rb"
+            ) as f:
+
+                video_bytes = f.read()
+
+
+            st.download_button(
+                "⬇️ Download Annotated Video",
+                data=video_bytes,
+                file_name="pothole_detected.mp4",
+                mime="video/mp4",
+                use_container_width=True
+            )
+
+
+        except Exception as e:
+
+            st.error(
+                f"❌ Error while processing video: {e}"
+            )
+
+
+        finally:
+
+            if (
+                input_path
+                and os.path.exists(input_path)
+            ):
+
+                os.remove(input_path)
