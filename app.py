@@ -98,6 +98,48 @@ except Exception as e:
     st.stop()
 
 
+
+# ============================================================
+# LOAD HIT & RUN MODELS
+# ============================================================
+
+@st.cache_resource
+def load_hit_run_models():
+
+    vehicle_model = YOLO("yolo11n.pt")
+
+    plate_model = YOLO(
+        str(HIT_RUN_PLATE_MODEL_PATH)
+    )
+
+    reader = easyocr.Reader(
+        ["en"],
+        gpu=False
+    )
+
+    return vehicle_model, plate_model, reader
+
+
+try:
+
+    hit_run_vehicle_model, hit_run_plate_model, hit_run_reader = (
+        load_hit_run_models()
+    )
+
+    st.success(
+        "✅ Hit & Run models loaded successfully."
+    )
+
+except Exception as e:
+
+    st.error(
+        f"❌ Could not load Hit & Run models: {e}"
+    )
+
+    st.stop()
+
+
+
 # ============================================================
 # WATERLOGGING FUNCTIONS
 # ============================================================
