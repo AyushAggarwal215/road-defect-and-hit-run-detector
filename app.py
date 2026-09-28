@@ -419,6 +419,83 @@ def process_combined_video(
             if not ret:
                 break
 
+
+            # =================================================
+            # HIT & RUN VEHICLE TRACKING
+            # =================================================
+
+            hit_run_results = hit_run_vehicle_model.track(
+                frame,
+                tracker="bytetrack.yaml",
+                persist=True,
+                conf=0.4,
+                verbose=False
+            )
+
+            boxes = hit_run_results[0].boxes
+
+            current_objects = []
+
+            if boxes.id is not None:
+
+                ids = boxes.id.cpu().numpy()
+                classes = boxes.cls.cpu().numpy()
+                xyxy = boxes.xyxy.cpu().numpy()
+
+                for obj_id, cls, box in zip(
+                    ids,
+                    classes,
+                    xyxy
+                ):
+
+                    obj_id = int(obj_id)
+                    cls = int(cls)
+
+                    x1, y1, x2, y2 = box
+
+                    cx = (x1 + x2) / 2
+                    cy = (y1 + y2) / 2
+
+                    previous = hit_run_tracks.get(obj_id)
+
+                    speed = 0.0
+
+                    if previous is not None:
+
+                        px, py, _ = previous
+
+                        speed = (
+                            (cx - px) ** 2 +
+                            (cy - py) ** 2
+                        ) ** 0.5
+
+                    hit_run_tracks[obj_id] = (
+                        cx,
+                        cy,
+                        frame_number
+                    )
+
+                    # COCO classes:
+                    # 0 = person
+                    # 2 = car
+                    # 3 = motorcycle
+                    # 5 = bus
+                    # 7 = truck
+
+                    if cls in [0, 2, 3, 5, 7]:
+
+                        current_objects.append({
+                            "id": obj_id,
+                            "class": cls,
+                            "cx": cx,
+                            "cy": cy,
+                            "x1": x1,
+                            "y1": y1,
+                            "x2": x2,
+                            "y2": y2,
+                            "speed": speed
+                        })
+
             # =================================================
             # POTHOLE DETECTION
             # =================================================
