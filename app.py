@@ -656,6 +656,208 @@ def process_combined_video(
             "the output video."
         )
 
+
+    # =========================================================
+    # HIT & RUN NUMBER PLATE DETECTION
+    # =========================================================
+
+    plate_number = None
+    plate_confidence = 0.0
+    offender_id = None
+    vehicle_type = None
+    video_timestamp = None
+
+    if len(collision_events) > 0:
+
+        collision = collision_events[0]
+
+        collision_frame = collision["frame"]
+
+        obj_a = collision["a"]
+        obj_b = collision["b"]
+
+        vehicle_classes = [2, 3, 5, 7]
+
+        if obj_a["class"] in vehicle_classes:
+
+            offender_id = obj_a["id"]
+            offender_box = obj_a
+
+        elif obj_b["class"] in vehicle_classes:
+
+            offender_id = obj_b["id"]
+            offender_box = obj_b
+
+        else:
+
+            offender_id = obj_a["id"]
+            offender_box = obj_a
+
+        # -----------------------------------------------------
+        # VIDEO TIMESTAMP
+        # -----------------------------------------------------
+
+        timestamp_seconds = collision_frame / fps
+
+        minutes = int(timestamp_seconds // 60)
+
+        seconds = int(timestamp_seconds % 60)
+
+        video_timestamp = (
+            f"{minutes:02d}:{seconds:02d}"
+        )
+
+        # -----------------------------------------------------
+        # VEHICLE TYPE
+        # -----------------------------------------------------
+
+        vehicle_class = offender_box["class"]
+
+        vehicle_type_map = {
+            2: "car",
+            3: "motorcycle",
+            5: "bus",
+            7: "truck"
+        }
+
+        vehicle_type = vehicle_type_map.get(
+            vehicle_class,
+            "vehicle"
+        )
+
+        # -----------------------------------------------------
+        # OPEN VIDEO AGAIN
+        # -----------------------------------------------------
+
+        plate_cap = cv2.VideoCapture(input_path)
+
+        start_frame = max(
+            0,
+            collision_frame - 30
+        )
+
+        end_frame = (
+            collision_frame + 60
+        )
+
+        plate_cap.set(
+            cv2.CAP_PROP_POS_FRAMES,
+            start_frame
+        )
+
+        current_frame = start_frame
+
+        plate_results = []
+
+        while current_frame <= end_frame:
+
+            ret, plate_frame = plate_cap.read()
+
+            if not ret:
+                break
+
+            # -------------------------------------------------
+            # NUMBER PLATE DETECTION
+            # -------------------------------------------------
+
+            results = hit_run_plate_model.predict(
+                plate_frame,
+                imgsz=640,
+                conf=0.15,
+                verbose=False
+            )
+
+            for result in results:
+
+                if result.boxes is None:
+                    continue
+
+                for box in result.boxes:
+
+                    plate_detection_conf = float(
+                        box.conf[0]
+                    )
+
+                    x1, y1, x2, y2 = map(
+                        int,
+                        box.xyxy[0].cpu().numpy()
+                    )
+
+                    crop = plate_frame[
+                        max(0, y1):max(y1 + 1, y2),
+                        max(0, x1):max(x1 + 1, x2)
+                    ]
+
+                    if crop.size == 0:
+                        continue
+
+                    # -------------------------------------------------
+                    # UPSCALE
+                    # -------------------------------------------------
+
+                    crop = cv2.resize(
+                        crop,
+                        None,
+                        fx=3,
+                        fy=3,
+                        interpolation=cv2.INTER_CUBIC
+                    )
+
+                    # -------------------------------------------------
+                    # OCR
+                    # -------------------------------------------------
+
+                    ocr_results = hit_run_reader.readtext(
+                        crop,
+                        detail=1,
+                        allowlist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+                    )
+
+                    for _, text, ocr_conf in ocr_results:
+
+                        cleaned = re.sub(
+                            r"[^A-Z0-9]",
+                            "",
+                            text.upper()
+                        )
+
+                        if len(cleaned) >= 5:
+
+                            combined_confidence = (
+                                float(ocr_conf)
+                                * plate_detection_conf
+                            )
+
+                            plate_results.append({
+                                "plate": cleaned,
+                                "confidence": combined_confidence,
+                                "frame": current_frame
+                            })
+
+            current_frame += 1
+
+        plate_cap.release()
+
+        # -----------------------------------------------------
+        # SELECT BEST PLATE
+        # -----------------------------------------------------
+
+        if len(plate_results) > 0:
+
+            plate_results.sort(
+                key=lambda x: x["confidence"],
+                reverse=True
+            )
+
+            best_plate = plate_results[0]
+
+            plate_number = best_plate["plate"]
+
+            plate_confidence = min(
+                best_plate["confidence"],
+                1.0
+            )
+    
     return (
         frame_number,
         pothole_count,
