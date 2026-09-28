@@ -26,6 +26,11 @@ st.set_page_config(
 st.title("🚨 Road Defect and Hit & Run Detector")
 st.caption("AI-powered road analysis")
 
+BACKEND_URL = "https://urban-net-sih26124.onrender.com/api/edge/events"
+
+BUS_ID = "BUS_17"
+CAMERA_ID = "CAM_FRONT"
+
 
 # ============================================================
 # POTHOLE MODEL CONFIGURATION
