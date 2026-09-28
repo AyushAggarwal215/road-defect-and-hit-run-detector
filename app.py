@@ -497,6 +497,31 @@ def process_combined_video(
                         })
 
             # =================================================
+            # HIT & RUN COLLISION DETECTION
+            # =================================================
+
+            for i in range(len(current_objects)):
+
+                for j in range(i + 1, len(current_objects)):
+
+                    a = current_objects[i]
+                    b = current_objects[j]
+
+                    distance = (
+                        (a["cx"] - b["cx"]) ** 2 +
+                        (a["cy"] - b["cy"]) ** 2
+                    ) ** 0.5
+
+                    if distance < 100:
+
+                        collision_events.append({
+                            "frame": frame_number,
+                            "a": a,
+                            "b": b,
+                            "distance": distance
+                        })
+
+            # =================================================
             # POTHOLE DETECTION
             # =================================================
 
