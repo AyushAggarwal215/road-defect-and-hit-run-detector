@@ -617,6 +617,7 @@ def process_combined_video(
         cap.release()
         out.release()
 
+    hit_run_count = len(collision_events)
     progress.empty()
     status.empty()
 
@@ -658,7 +659,8 @@ def process_combined_video(
     return (
         frame_number,
         pothole_count,
-        waterlogging_count
+        waterlogging_count,
+        hit_run_count
     )
 
 # ============================================================
