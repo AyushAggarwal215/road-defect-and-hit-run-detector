@@ -33,6 +33,17 @@ DRIVE_FILE_ID = "1B0XF-Mnn62Wrv3G9IPeMaavkpO6ReAyl"
 
 
 # ============================================================
+# WATERLOGGING MODEL CONFIGURATION
+# ============================================================
+
+WATERLOGGING_WORKFLOW_URL = (
+    "https://serverless.roboflow.com/infer/workflows/"
+    "theftddetection-lwj20/"
+    "waterlogging-video-bounding-boxes-1789221984773"
+)
+
+
+# ============================================================
 # LOAD POTHOLE MODEL
 # ============================================================
 
