@@ -2,6 +2,8 @@ import streamlit as st
 import cv2
 import tempfile
 import os
+import subprocess
+import imageio_ffmpeg
 from pathlib import Path
 
 from ultralytics import YOLO
@@ -114,7 +116,6 @@ def process_pothole_video(
     cap = cv2.VideoCapture(input_path)
 
     if not cap.isOpened():
-
         raise RuntimeError(
             "Could not open the uploaded video."
         )
@@ -136,23 +137,29 @@ def process_pothole_video(
         cap.get(cv2.CAP_PROP_FRAME_COUNT)
     )
 
+    # Temporary AVI file
+    avi_path = output_path.replace(
+        ".mp4",
+        ".avi"
+    )
+
+    # Use MJPG for OpenCV
     fourcc = cv2.VideoWriter_fourcc(
-        *"mp4v"
+        *"MJPG"
     )
 
     out = cv2.VideoWriter(
-        output_path,
+        avi_path,
         fourcc,
         fps,
         (width, height)
     )
 
     if not out.isOpened():
-
         cap.release()
 
         raise RuntimeError(
-            "Could not create the output video."
+            "Could not create the temporary output video."
         )
 
     progress = st.progress(0)
@@ -226,6 +233,37 @@ def process_pothole_video(
 
     progress.empty()
     status.empty()
+
+    # Convert AVI → MP4 using FFmpeg
+    ffmpeg_path = imageio_ffmpeg.get_ffmpeg_exe()
+
+    command = [
+        ffmpeg_path,
+        "-y",
+        "-i",
+        avi_path,
+        "-c:v",
+        "libx264",
+        "-pix_fmt",
+        "yuv420p",
+        output_path
+    ]
+
+    result = subprocess.run(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE
+    )
+
+    # Remove temporary AVI
+    if os.path.exists(avi_path):
+        os.remove(avi_path)
+
+    if result.returncode != 0:
+
+        raise RuntimeError(
+            "FFmpeg could not convert the output video."
+        )
 
     return frame_number, detection_count
 
