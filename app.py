@@ -1072,6 +1072,51 @@ if uploaded_video is not None:
                         "Number plate could not be read clearly."
                     )
 
+                # ------------------------------------------------
+                # HIT & RUN BACKEND EVENT
+                # ------------------------------------------------
+
+                hit_run_payload = {
+                    "eventType": "HIT_AND_RUN",
+
+                    "busId": BUS_ID,
+
+                    "cameraId": CAMERA_ID,
+
+                    "timestamp": datetime.now(
+                        timezone.utc
+                    ).isoformat(),
+
+                    "location": {
+                        "latitude": 28.6139,
+                        "longitude": 77.2090,
+                        "address": "New Delhi"
+                    },
+
+                    "detection": {
+                        "confidence": float(
+                            plate_confidence
+                        ),
+                        "severity": "CRITICAL"
+                    },
+
+                    "model": {
+                        "name": "hit-and-run-yolo",
+                        "version": "1.0"
+                    },
+
+                    "evidence": {
+                        "imageUrl": None
+                    },
+
+                    "metadata": {
+                        "offendingVehicleReg": plate_number,
+                        "offendingVehicleDetails": vehicle_type,
+                        "offenderTrackId": offender_id,
+                        "videoTimestamp": video_timestamp
+                    }
+                }
+
             else:
 
                 st.info(
