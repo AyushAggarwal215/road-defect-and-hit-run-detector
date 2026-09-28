@@ -729,7 +729,7 @@ if uploaded_video is not None:
                 "🔍 Detecting potholes..."
             ):
 
-                frames_processed, pothole_detections, waterlogging_detections = (
+                frames_processed, pothole_detections, waterlogging_detections, hit_run_detections = (
                     process_combined_video(
                         input_path,
                         output_path,
@@ -751,7 +751,7 @@ if uploaded_video is not None:
 
             st.subheader("📊 Detection Summary")
 
-            col1, col2, col3 = st.columns(3)
+            col1, col2, col3, col4 = st.columns(4)
 
             with col1:
             
@@ -772,6 +772,13 @@ if uploaded_video is not None:
                 st.metric(
                     "Waterlogging Detections",
                     f"{waterlogging_detections:,}"
+                )
+
+            with col4:
+            
+                st.metric(
+                    "Hit & Run Candidates",
+                    f"{hit_run_detections:,}"
                 )
 
             # ------------------------------------------------
