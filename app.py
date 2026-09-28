@@ -1117,6 +1117,54 @@ if uploaded_video is not None:
                     }
                 }
 
+                # ------------------------------------------------
+                # SEND HIT & RUN EVENT TO BACKEND
+                # ------------------------------------------------
+
+                try:
+
+                    response = requests.post(
+                        BACKEND_URL,
+                        json=hit_run_payload,
+                        headers={
+                            "Content-Type": "application/json"
+                        },
+                        timeout=30
+                    )
+
+                    if response.status_code in [200, 201, 202]:
+
+                        st.success(
+                            f"✅ Hit & Run event sent to backend "
+                            f"(HTTP {response.status_code})"
+                        )
+
+                    else:
+
+                        st.error(
+                            f"❌ Backend rejected Hit & Run event "
+                            f"(HTTP {response.status_code})"
+                        )
+
+                        st.code(response.text)
+
+                except requests.exceptions.RequestException as e:
+
+                    st.error(
+                        "❌ Could not connect to backend."
+                    )
+
+                    st.code(str(e))
+
+                # ------------------------------------------------
+                # SHOW JSON SENT TO BACKEND
+                # ------------------------------------------------
+
+                with st.expander("📦 View Hit & Run JSON"):
+
+                    st.json(hit_run_payload)
+
+
             else:
 
                 st.info(
