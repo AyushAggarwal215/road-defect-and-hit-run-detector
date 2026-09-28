@@ -84,6 +84,171 @@ except Exception as e:
 
 
 # ============================================================
+# WATERLOGGING FUNCTIONS
+# ============================================================
+
+def extract_first_output(response_json):
+
+    if not isinstance(response_json, dict):
+        return None
+
+    outputs = response_json.get("outputs")
+
+    if isinstance(outputs, list) and outputs:
+        return outputs[0] if isinstance(outputs[0], dict) else None
+
+    if isinstance(outputs, dict):
+        return outputs
+
+    return response_json
+
+
+def decode_workflow_image(value):
+
+    if value is None:
+        return None
+
+    if isinstance(value, dict):
+
+        for key in ("value", "image", "data", "base64"):
+
+            if key in value:
+                return decode_workflow_image(value[key])
+
+        return None
+
+    if not isinstance(value, str):
+        return None
+
+    try:
+
+        encoded = (
+            value.split(",", 1)[1]
+            if value.startswith("data:") and "," in value
+            else value
+        )
+
+        image_bytes = base64.b64decode(encoded)
+
+        image = cv2.imdecode(
+            np.frombuffer(
+                image_bytes,
+                np.uint8
+            ),
+            cv2.IMREAD_COLOR
+        )
+
+        return image
+
+    except Exception:
+
+        return None
+
+
+def prediction_count(value):
+
+    if value is None:
+        return 0
+
+    if isinstance(value, list):
+        return len(value)
+
+    if isinstance(value, dict):
+
+        for key in ("predictions", "detections"):
+
+            if isinstance(value.get(key), list):
+                return len(value[key])
+
+        for key in ("output", "result", "data"):
+
+            if key in value:
+
+                count = prediction_count(
+                    value[key]
+                )
+
+                if count:
+                    return count
+
+    return 0
+
+
+def run_waterlogging_on_frame(
+    frame,
+    api_key
+):
+
+    ok, encoded = cv2.imencode(
+        ".jpg",
+        frame
+    )
+
+    if not ok:
+
+        raise RuntimeError(
+            "Could not encode video frame."
+        )
+
+    image_b64 = base64.b64encode(
+        encoded.tobytes()
+    ).decode("utf-8")
+
+    payload = {
+        "inputs": {
+            "image": {
+                "type": "base64",
+                "value": image_b64
+            }
+        }
+    }
+
+    response = requests.post(
+        WATERLOGGING_WORKFLOW_URL,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        json=payload,
+        timeout=60,
+    )
+
+    response.raise_for_status()
+
+    output = (
+        extract_first_output(
+            response.json()
+        ) or {}
+    )
+
+    output_image = None
+
+    for key in (
+        "output_image",
+        "annotated_image",
+        "visualization",
+        "image"
+    ):
+
+        if key in output:
+
+            output_image = decode_workflow_image(
+                output[key]
+            )
+
+            if output_image is not None:
+                break
+
+    predictions = (
+        output.get("predictions")
+        or output.get("detections")
+        or []
+    )
+
+    return output_image, predictions
+
+
+# ============================================================
 # SETTINGS
 # ============================================================
 
