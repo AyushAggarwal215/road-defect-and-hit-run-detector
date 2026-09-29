@@ -26,7 +26,7 @@ st.set_page_config(
 st.title("🚨 Road Defect and Hit & Run Detector")
 st.caption("AI-powered road analysis")
 
-BACKEND_URL = "hhttps://urban-net-sih26124-backend.onrender.com/api/v1/edge/events"
+BACKEND_URL = "https://urban-net-sih26124-backend.onrender.com/api/v1/edge/events"
 
 BUS_ID = "BUS_17"
 CAMERA_ID = "CAM_FRONT"
