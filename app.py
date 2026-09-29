@@ -356,6 +356,7 @@ def process_combined_video(
     api_key
 ):
 
+    collision_image_path = None
     cap = cv2.VideoCapture(input_path)
 
     if not cap.isOpened():
@@ -703,6 +704,31 @@ def process_combined_video(
 
         collision_frame = collision["frame"]
 
+        # Get the exact collision frame
+        collision_cap = cv2.VideoCapture(input_path)
+    
+        collision_cap.set(
+            cv2.CAP_PROP_POS_FRAMES,
+            collision_frame
+        )
+    
+        ret, collision_image = collision_cap.read()
+    
+        collision_cap.release()
+    
+        collision_image_path = None
+    
+        if ret:
+            collision_image_path = os.path.join(
+                tempfile.gettempdir(),
+                f"HIT_RUN_{BUS_ID}_{collision_frame}.jpg"
+            )
+    
+            cv2.imwrite(
+                collision_image_path,
+                collision_image
+            )
+
         obj_a = collision["a"]
         obj_b = collision["b"]
 
@@ -897,7 +923,8 @@ def process_combined_video(
         vehicle_type,
         video_timestamp,
         plate_number,
-        plate_confidence
+        plate_confidence,
+        collision_image_path
     )
 
 # ============================================================
@@ -966,7 +993,7 @@ if uploaded_video is not None:
                 "🔍 Detecting potholes..."
             ):
 
-                frames_processed, pothole_detections, waterlogging_detections, hit_run_detections, offender_id, vehicle_type, video_timestamp, plate_number, plate_confidence = (
+                frames_processed, pothole_detections, waterlogging_detections, hit_run_detections, offender_id, vehicle_type, video_timestamp, plate_number, plate_confidence, collision_image_path = (
                     process_combined_video(
                         input_path,
                         output_path,
