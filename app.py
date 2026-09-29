@@ -26,7 +26,7 @@ st.set_page_config(
 st.title("🚨 Road Defect and Hit & Run Detector")
 st.caption("AI-powered road analysis")
 
-BACKEND_URL = "https://urban-net-sih26124.onrender.com/api/edge/events"
+BACKEND_URL = "hhttps://urban-net-sih26124-backend.onrender.com/api/v1/edge/events"
 
 BUS_ID = "BUS_17"
 CAMERA_ID = "CAM_FRONT"
@@ -1077,45 +1077,38 @@ if uploaded_video is not None:
                 # ------------------------------------------------
 
                 hit_run_payload = {
-                    "eventType": "HIT_AND_RUN",
-
-                    "busId": BUS_ID,
-
-                    "cameraId": CAMERA_ID,
-
-                    "timestamp": datetime.now(
-                        timezone.utc
-                    ).isoformat(),
-
-                    "location": {
-                        "latitude": 28.6139,
-                        "longitude": 77.2090,
-                        "address": "New Delhi"
-                    },
-
-                    "detection": {
-                        "confidence": float(
-                            plate_confidence
-                        ),
-                        "severity": "CRITICAL"
-                    },
-
-                    "model": {
-                        "name": "hit-and-run-yolo",
-                        "version": "1.0"
-                    },
-
-                    "evidence": {
-                        "imageUrl": None
-                    },
-
-                    "metadata": {
-                        "offendingVehicleReg": plate_number,
-                        "offendingVehicleDetails": vehicle_type,
-                        "offenderTrackId": offender_id,
-                        "videoTimestamp": video_timestamp
+                        "observationId": f"HIT_RUN_{BUS_ID}_{frame_number}",
+                    
+                        "busId": BUS_ID,
+                    
+                        "category": "TRAFFIC",
+                    
+                        "type": "HIT_AND_RUN",
+                    
+                        "handling": "REAL_TIME",
+                    
+                        "severity": "CRITICAL",
+                    
+                        "confidence": float(plate_confidence),
+                    
+                        "location": {
+                            "latitude": 28.6129,
+                            "longitude": 77.2295
+                        },
+                    
+                        "capturedAt": datetime.now(
+                            timezone.utc
+                        ).isoformat(),
+                    
+                        "evidence": {
+                            "imageUrl": None
+                        },
+                    
+                        "model": {
+                            "name": "hit-and-run-yolo",
+                            "version": "1.0.0"
+                        }
                     }
-                }
 
                 # ------------------------------------------------
                 # SEND HIT & RUN EVENT TO BACKEND
