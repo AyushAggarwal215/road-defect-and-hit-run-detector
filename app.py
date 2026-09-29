@@ -1077,7 +1077,7 @@ if uploaded_video is not None:
                 # ------------------------------------------------
 
                 hit_run_payload = {
-                        "observationId": f"HIT_RUN_{BUS_ID}_{frame_number}",
+                        "observationId": f"HIT_RUN_{BUS_ID}_{video_timestamp}",
                     
                         "busId": BUS_ID,
                     
