@@ -1128,7 +1128,7 @@ if uploaded_video is not None:
                         ).isoformat(),
                     
                         "evidence": {
-                            "imageUrl": None
+                            "imageUrl": "https://res.cloudinary.com/ollmevhd/image/upload/f_auto,q_auto/WhatsApp_Image_2026-09-29_at_5.32.43_PM"
                         },
                     
                         "model": {
